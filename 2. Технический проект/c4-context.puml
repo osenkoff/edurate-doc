@@ -1,0 +1,45 @@
+@startuml
+!include <c4/C4_Context>
+!include <tupadr3/common>
+!include <tupadr3/devicons2/flutter>
+
+SHOW_PERSON_OUTLINE()
+
+skinparam actorBackgroundColor #DCEBFA
+skinparam actorFontColor #183153
+skinparam actorBorderColor #4776B8
+
+skinparam wrapWidth 250
+skinparam wrapMessageWidth 200
+
+title "EduRate. Диаграмма контекста"
+
+Person_Ext(student, "Абитуриент / студент", "Ищет и сравнивает IT-образовательные организации и курсы, изучает преподавателей, читает и оставляет отзывы, добавляет организации в избранное")
+Person_Ext(teacher, "Преподаватель", "Просматривает свой профиль, связанные с ним курсы, отзывы и рейтинг своей работы")
+Person(moderator, "Модератор", "Проверяет отзывы и подтверждающие документы, обрабатывает жалобы и контролирует публикацию отзывов")
+Person(admin, "Администратор", "Управляет образовательными организациями, курсами, преподавателями и пользователями, назначает модераторов")
+
+
+System(edurate, "EduRate", "Агрегатор для поиска, сравнения и оценки IT-образовательных организаций, курсов и преподавателей. Предоставляет каталог образовательных организаций, рейтинги и отзывы пользователей, а также инструменты для сравнения и выбора обучения", $sprite="flutter")
+
+Rel(student, edurate, "Использует")
+Rel(teacher, edurate, "Использует")
+Rel(moderator, edurate, "HTTPS · Веб-администрирование")
+Rel(admin, edurate, "HTTPS · Веб-администрирование")
+
+System_Ext(email, "Selectel SMTP", "Отправка кодов 2FA, подтверждений Email и писем для восстановления доступа")
+System_Ext(storage, "Selectel Object Storage", "Хранение подтверждающих документов и резервных копий")
+System_Ext(push, "RuStore Push Notifications", "Доставка push-уведомлений, например об изменении статуса отзыва")
+System_Ext(sentry, "Sentry", "Сбор и анализ ошибок мобильного приложения и серверной части")
+System_Ext(monitoring, "Monitoring Stack", "Prometheus — сбор метрик, Grafana — визуализация, Alertmanager — оповещения")
+
+Rel(edurate, email, "Отправляет письма", "SMTP over TLS")
+Rel(edurate, push, "Отправляет push-уведомления", "HTTPS / REST API")
+Rel(edurate, storage, "Загружает и скачивает файлы", "HTTPS / S3 API")
+Rel(edurate, sentry, "Передаёт информацию об ошибках", "HTTPS")
+Rel(edurate, monitoring, "Передаёт метрики", "HTTP / Prometheus")
+
+Rel(push, student, "Доставляет push-уведомления")
+Rel(email, student, "Доставляет электронные письма")
+
+@enduml

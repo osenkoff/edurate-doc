@@ -1,0 +1,59 @@
+@startuml
+!include <C4/C4_Container>
+!include <tupadr3/common>
+!include <tupadr3/devicons/redis>
+!include <tupadr3/devicons2/flutter>
+!include <tupadr3/devicons2/django>
+!include <tupadr3/devicons2/postgresql>
+
+SHOW_PERSON_OUTLINE()
+
+skinparam wrapWidth 250
+skinparam wrapMessageWidth 200
+
+title "EduRate. Диаграмма контейнеров"
+
+Person_Ext(student, "Абитуриент / студент", "Ищет и сравнивает IT-образовательные организации и курсы, изучает преподавателей, читает и оставляет отзывы, добавляет организации в избранное")
+Person_Ext(teacher, "Преподаватель", "Просматривает свой профиль, связанные с ним курсы, отзывы и рейтинг своей работы")
+Person(moderator, "Модератор", "Проверяет отзывы и подтверждающие документы, обрабатывает жалобы и контролирует публикацию отзывов")
+Person(admin, "Администратор", "Управляет образовательными организациями, курсами, преподавателями и пользователями, назначает модераторов")
+
+System_Boundary(edurate, "EduRate Container") {
+    Container(mobileApp, "Android Mobile App", "Dart / Flutter", "Каталог, поиск, отзывы, избранное", $sprite="flutter")
+    Container(webAdmin, "Django Web Admin", "Python / Django", "Администрирование, жалобы, управление данными", $sprite="django")
+    Container(proxy, "Reverse Proxy", "Nginx / TLS", "TLS, маршрутизация, rate limiting")
+    Container(websocket, "WebSocket", "Centrifugo", "Уведомления в реальном времени")
+    Container(backend, "Django Backend", "Python / DRF", "Модульный монолит: бизнес-логика и REST API", $sprite="django")
+    ContainerDb(db, "DataBase", "PostgreSQL", "Пользователи, каталог, отзывы, жалобы, журналы", $sprite="postgresql")
+    ContainerQueue(broker, "Redis Broker", "Python / Redis", "Очередь фоновых задач и кэш", $sprite="redis")
+    Container(worker, "Celery Worker", "Python / Celery", "Файлы, рейтинги, письма, push, бэкапы")
+}
+
+System_Ext(storage, "Selectel Object Storage", "Документы и резервные копии")
+System_Ext(sentry, "Sentry", "Анализ ошибок")
+System_Ext(monitoring, "Мониторинг", "Prometheus, Grafana, Alertmanager")
+System_Ext(push, "RuStore Push", "Push-уведомления")
+System_Ext(email, "Selectel SMTP", "Коды 2FA, письма")
+
+Rel(student, mobileApp, "HTTPS")
+Rel(teacher, mobileApp, "HTTPS")
+Rel(moderator, webAdmin, "HTTPS, /admin")
+Rel(admin, webAdmin, "HTTPS, /admin")
+
+Rel(mobileApp, proxy, "API-вызовы", "JSON, HTTPS/REST")
+Rel(webAdmin, proxy, "API-вызовы", "JSON, HTTPS/REST")
+Rel(proxy, websocket, "Уведомления", "WebSocket / WSS")
+Rel(proxy, backend, "Запросы", "JSON, HTTPS/REST")
+
+Rel(backend, db, "Чтение и запись", "SQL, Django ORM")
+Rel(backend, broker, "Кэш, постановка задач", "Redis Protocol")
+Rel(backend, storage, "Документы", "HTTPS / S3 API")
+Rel(backend, sentry, "Ошибки", "HTTPS / Sentry SDK")
+Rel(backend, monitoring, "Метрики", "HTTP / Metrics Export")
+
+Rel(worker, broker, "Получение задач", "Redis Protocol")
+Rel(worker, db, "Чтение и запись", "SQL, Django ORM")
+Rel(worker, sentry, "Ошибки", "HTTPS / Sentry SDK")
+Rel(worker, push, "Push", "HTTPS / REST API")
+Rel(worker, email, "Письма", "SMTP over TLS")
+@enduml
