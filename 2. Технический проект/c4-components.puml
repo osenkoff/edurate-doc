@@ -1,0 +1,195 @@
+@startuml
+!include <C4/C4_Component>
+
+LAYOUT_LEFT_RIGHT()
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam ArrowColor #64748B
+skinparam ArrowFontColor #475569
+skinparam ArrowFontSize 10
+skinparam packageStyle rectangle
+skinparam packageBorderStyle dashed
+skinparam packageBorderColor #94A3B8
+skinparam packageBackgroundColor #F8FAFC
+
+skinparam component {
+    BackgroundColor #EAF2FF
+    BorderColor #4776B8
+    FontColor #FFFFFF
+}
+
+skinparam database {
+    BackgroundColor #E8F5E9
+    BorderColor #4C956C
+    FontColor #24543A
+}
+
+SHOW_PERSON_OUTLINE()
+
+Person_Ext(student, "Абитуриент / студент", "Ищет и сравнивает IT-образовательные организации и курсы, изучает преподавателей, читает и оставляет отзывы, добавляет организации в избранное")
+Person_Ext(teacher, "Преподаватель", "Просматривает свой профиль, связанные с ним курсы, отзывы и рейтинг своей работы")
+Person(moderator, "Модератор", "Проверяет отзывы и подтверждающие документы, обрабатывает жалобы и контролирует публикацию отзывов")
+Person(admin, "Администратор", "Управляет образовательными организациями, курсами, преподавателями и пользователями, назначает модераторов")
+
+System_Ext(storage, "Selectel Object Storage", "Объектное хранилище с поддержкой S3 API")
+System_Ext(smtp, "Selectel SMTP", "Сервис отправки электронной почты")
+System_Ext(push, "RuStore Push Notifications", "Сервис доставки push-уведомлений")
+System_Ext(sentry, "Sentry", "Мониторинг ошибок")
+
+System_Boundary(edurate, "EDURATE") {
+
+    Container(mobile, "Android Mobile App", "Flutter / Dart", "Мобильное приложение для абитуриентов, студентов и преподавателей")
+    Container(proxy, "Reverse Proxy", "Nginx", "Принимает HTTPS-запросы и перенаправляет их в Django Backend")
+    ContainerDb(db, "Database", "PostgreSQL", "Хранит данные приложения")
+    ContainerQueue(redis, "Redis", "Redis", "Кэширование и брокер сообщений для Celery")
+    Container(worker, "Celery Worker", "Python / Celery", "Выполняет фоновые задачи")
+
+    Container_Boundary(backend, "DJANGO BACKEND · MODULAR MONOLITH") {
+
+        Component(api, "API Router", "Django REST Framework", "Маршрутизирует входящие API-запросы")
+
+        package "USERS MODULE" #EAF2FF {
+            Component(userViews, "User Views", "DRF", "Обрабатывает регистрацию, авторизацию и запросы профиля")
+            Component(userSerializers, "User Serializers", "DRF", "Проверяет и преобразует пользовательские данные")
+            Component(userService, "User Service", "Python", "Реализует бизнес-логику управления пользователями и аккаунтами")
+            Component(jwt, "JWT Authentication", "Simple JWT", "Аутентифицирует запросы с помощью JWT-токенов")
+            Component(permissions, "Authorization", "DRF Permissions", "Проверяет роли и права доступа")
+            Component(userModel, "Custom User Model", "Django ORM", "Хранит учётные записи и профили пользователей")
+        }
+
+        package "ORGANIZATIONS MODULE" #E9F7EF {
+            Component(orgViews, "Organization Views", "DRF", "Обрабатывает API-запросы организаций")
+            Component(orgSerializers, "Organization Serializers", "DRF", "Проверяет данные образовательных организаций")
+            Component(orgService, "Organization Service", "Python", "Реализует бизнес-логику управления организациями")
+            Component(orgModel, "Organization Model", "Django ORM", "Хранит данные образовательных организаций")
+        }
+
+        package "COURSES MODULE" #FFF4E5 {
+            Component(courseViews, "Course Views", "DRF", "Обрабатывает API-запросы курсов")
+            Component(courseSerializers, "Course Serializers", "DRF", "Проверяет данные курсов")
+            Component(courseService, "Course Service", "Python", "Реализует логику управления курсами")
+            Component(courseModel, "Course Model", "Django ORM", "Хранит программы, стоимость и форматы обучения")
+        }
+
+        package "TEACHERS MODULE" #F3EAFE {
+            Component(teacherViews, "Teacher Views", "DRF", "Обрабатывает API-запросы преподавателей")
+            Component(teacherSerializers, "Teacher Serializers", "DRF", "Проверяет данные преподавателей")
+            Component(teacherService, "Teacher Service", "Python", "Реализует логику управления профилями преподавателей")
+            Component(teacherModel, "Teacher Model", "Django ORM", "Хранит опыт работы и специализацию преподавателей")
+        }
+
+        package "REVIEWS MODULE" #FCEEEF {
+            Component(reviewViews, "Review Views", "DRF", "Обрабатывает API-запросы отзывов")
+            Component(reviewSerializers, "Review Serializers", "DRF", "Проверяет данные отзывов")
+            Component(reviewService, "Review Service", "Python", "Реализует создание, редактирование и публикацию отзывов")
+            Component(ratingService, "Rating Calculation", "Python", "Вычисляет агрегированные рейтинги")
+            Component(reviewModel, "Review Model", "Django ORM", "Хранит отзывы и оценки")
+        }
+
+        package "MODERATION MODULE" #FFF0E8 {
+            Component(moderationViews, "Moderation Views", "DRF", "Обрабатывает запросы на модерацию")
+            Component(moderationService, "Moderation Service", "Python", "Проверяет контент и принимает решения по модерации")
+        }
+
+        package "SEARCH MODULE" #E8F5FA {
+            Component(searchViews, "Search Views", "DRF", "Обрабатывает поисковые запросы")
+            Component(searchService, "Search Service", "Python", "Реализует поиск, фильтрацию и сортировку")
+        }
+
+        package "NOTIFICATIONS MODULE" #FFF8DC {
+            Component(notificationService, "Notification Service", "Python", "Определяет получателей и каналы уведомлений")
+            Component(taskPublisher, "Task Publisher", "Celery", "Публикует фоновые задачи в очередь")
+        }
+
+        package "SHARED INFRASTRUCTURE" #F1F5F9 {
+            Component(storageAdapter, "Storage Adapter", "Python", "Обеспечивает взаимодействие с Selectel Object Storage")
+            Component(cacheAdapter, "Cache Adapter", "Django Cache", "Обеспечивает взаимодействие с Redis Cache")
+            Component(djangoAdmin, "Django Admin", "Django Admin", "Предоставляет административный интерфейс для управления данными приложения")
+        }
+    }
+}
+
+Rel(student, mobile, "Использует")
+Rel(teacher, mobile, "Использует")
+Rel(moderator, proxy, "HTTPS · Доступ к Django Admin")
+Rel(admin, proxy, "HTTPS · Доступ к Django Admin")
+
+Rel(mobile, proxy, "HTTPS / REST / JSON · API-запросы")
+Rel(proxy, api, "HTTP · Перенаправление запросов")
+Rel(proxy, djangoAdmin, "HTTP · Доступ к административной панели")
+
+Rel(api, userViews, "Направляет запросы")
+Rel(api, orgViews, "Направляет запросы")
+Rel(api, courseViews, "Направляет запросы")
+Rel(api, teacherViews, "Направляет запросы")
+Rel(api, reviewViews, "Направляет запросы")
+Rel(api, moderationViews, "Направляет запросы")
+Rel(api, searchViews, "Направляет запросы")
+
+Rel(userViews, userSerializers, "Проверяет данные")
+Rel(userViews, userService, "Вызывает")
+Rel(userViews, jwt, "Использует аутентификацию")
+Rel(userViews, permissions, "Проверяет права доступа")
+Rel(userService, userModel, "Читает и изменяет данные")
+
+Rel(orgViews, orgSerializers, "Проверяет данные")
+Rel(orgViews, orgService, "Вызывает")
+Rel(orgService, orgModel, "Читает и изменяет данные")
+
+Rel(courseViews, courseSerializers, "Проверяет данные")
+Rel(courseViews, courseService, "Вызывает")
+Rel(courseService, courseModel, "Читает и изменяет данные")
+Rel(courseService, orgModel, "Получает данные организаций")
+
+Rel(teacherViews, teacherSerializers, "Проверяет данные")
+Rel(teacherViews, teacherService, "Вызывает")
+Rel(teacherService, teacherModel, "Читает и изменяет данные")
+Rel(teacherService, orgModel, "Получает данные организаций")
+
+Rel(reviewViews, reviewSerializers, "Проверяет данные")
+Rel(reviewViews, reviewService, "Вызывает")
+Rel(reviewService, reviewModel, "Читает и изменяет данные")
+Rel(reviewService, ratingService, "Вычисляет рейтинг")
+Rel(reviewService, userModel, "Получает данные автора")
+Rel(reviewService, orgModel, "Получает данные организации")
+Rel(reviewService, courseModel, "Получает данные курса")
+Rel(reviewService, teacherModel, "Получает данные преподавателя")
+
+Rel(moderationViews, moderationService, "Вызывает")
+Rel(moderationService, reviewModel, "Проверяет и изменяет отзывы")
+
+Rel(searchViews, searchService, "Вызывает")
+Rel(searchService, orgModel, "Ищет организации")
+Rel(searchService, courseModel, "Ищет курсы")
+Rel(searchService, teacherModel, "Ищет преподавателей")
+
+Rel(notificationService, taskPublisher, "Создаёт задачи уведомлений")
+Rel(userService, notificationService, "Инициирует уведомления")
+Rel(reviewService, notificationService, "Инициирует уведомления")
+Rel(moderationService, notificationService, "Инициирует уведомления")
+Rel(taskPublisher, redis, "Публикует задачи")
+
+Rel(storageAdapter, storage, "HTTPS / S3 API · Передача файлов")
+Rel(cacheAdapter, redis, "Redis Protocol · Кэширование")
+
+Rel(userModel, db, "Читает и изменяет данные")
+Rel(orgModel, db, "Читает и изменяет данные")
+Rel(courseModel, db, "Читает и изменяет данные")
+Rel(teacherModel, db, "Читает и изменяет данные")
+Rel(reviewModel, db, "Читает и изменяет данные")
+
+Rel(worker, redis, "Получает фоновые задачи")
+Rel(worker, db, "Читает и изменяет данные")
+Rel(worker, storage, "Загружает и скачивает файлы")
+Rel(worker, smtp, "SMTP over TLS · Отправляет письма")
+Rel(worker, push, "HTTPS / REST API · Отправляет push-уведомления")
+Rel(worker, sentry, "Передаёт информацию об ошибках")
+
+Rel(api, sentry, "Передаёт информацию об ошибках")
+Rel(mobile, sentry, "Передаёт информацию об ошибках")
+
+@enduml
